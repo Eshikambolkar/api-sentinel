@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Sentinel — Security Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- ══ Header ══════════════════════════════════════════════════════════════ -->
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect width="28" height="28" rx="6" fill="#3b82d4"/>
+          <path d="M14 4l8 4v7c0 4-3.5 7.5-8 9-4.5-1.5-8-5-8-9V8l8-4z" fill="white" opacity="0.9"/>
+          <path d="M11 14l2 2 4-4" stroke="#3b82d4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>API Sentinel</span>
+      </div>
+      <nav class="nav-links">
+        <a href="/api/docs" target="_blank" rel="noopener">API Docs</a>
+        <a href="https://owasp.org/www-project-api-security/" target="_blank" rel="noopener">OWASP API Top 10</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ══ Tab bar ══════════════════════════════════════════════════════════════ -->
+  <div class="tab-bar" id="tabBar">
+    <div class="container tab-bar-inner">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn"        data-tab="scanner">Scanner</button>
+      <button class="tab-btn"        data-tab="lab">BOLA / IDOR Lab</button>
+    </div>
+  </div>
+
+  <main class="container" id="mainContent">
+
+    <!-- ══════════════════════ DASHBOARD TAB ══════════════════════════════════ -->
+    <div id="tab-dashboard" class="tab-panel">
+
+      <!-- Stat cards row -->
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card stat-loading" id="statCardScans">
+          <div class="stat-label">Total Scans</div>
+          <div class="stat-value" id="statTotalScans"><span class="skeleton"></span></div>
+        </div>
+        <div class="stat-card stat-loading" id="statCardFindings">
+          <div class="stat-label">Total Findings</div>
+          <div class="stat-value" id="statTotalFindings"><span class="skeleton"></span></div>
+        </div>
+        <div class="stat-card sev-critical stat-loading" id="statCardCritical">
+          <div class="stat-label">Critical</div>
+          <div class="stat-value" id="statCritical"><span class="skeleton"></span></div>
+        </div>
+        <div class="stat-card sev-high stat-loading" id="statCardHigh">
+          <div class="stat-label">High</div>
+          <div class="stat-value" id="statHigh"><span class="skeleton"></span></div>
+        </div>
+        <div class="stat-card sev-medium stat-loading" id="statCardMedium">
+          <div class="stat-label">Medium</div>
+          <div class="stat-value" id="statMedium"><span class="skeleton"></span></div>
+        </div>
+        <div class="stat-card sev-low stat-loading" id="statCardLow">
+          <div class="stat-label">Low / Info</div>
+          <div class="stat-value" id="statLow"><span class="skeleton"></span></div>
+        </div>
+      </div>
+
+      <!-- Recent scans + findings panel -->
+      <div class="dashboard-cols">
+
+        <!-- Left: scan history -->
+        <section class="card dash-history-card">
+          <div class="dash-card-header">
+            <h2>Scan History</h2>
+            <button class="btn-ghost" id="dashRefreshBtn" aria-label="Refresh">↻</button>
+          </div>
+          <div id="dashHistoryWrap">
+            <div class="skeleton-rows"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+          </div>
+        </section>
+
+        <!-- Right: findings for selected scan -->
+        <section class="card dash-findings-card" id="dashFindingsCard">
+          <div class="dash-card-header">
+            <h2 id="dashFindingsTitle">Select a scan</h2>
+            <div class="dash-export-row hidden" id="dashExportRow">
+              <button class="btn-ghost btn-icon" id="exportJsonBtn" title="Export JSON">⬇ JSON</button>
+              <button class="btn-ghost btn-icon" id="exportHtmlBtn" title="Print / Save HTML">🖨 Report</button>
+            </div>
+          </div>
+
+          <!-- Findings toolbar -->
+          <div class="findings-toolbar hidden" id="findingsToolbar">
+            <input type="search" id="findingSearch" class="search-input" placeholder="Search findings…" aria-label="Search findings" />
+            <div class="filter-chips" id="filterChips" role="group" aria-label="Filter by severity">
+              <button class="chip chip-all active" data-sev="all">All</button>
+              <button class="chip chip-critical" data-sev="critical">Critical</button>
+              <button class="chip chip-high"     data-sev="high">High</button>
+              <button class="chip chip-medium"   data-sev="medium">Medium</button>
+              <button class="chip chip-low"      data-sev="low">Low</button>
+              <button class="chip chip-info"     data-sev="info">Info</button>
+            </div>
+          </div>
+
+          <!-- Findings list -->
+          <div id="dashFindingsList" class="findings-list dash-findings-list">
+            <div class="empty-state">
+              <p class="empty-icon">🔍</p>
+              <p>Click a scan in the history to view its findings.</p>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /dashboard-cols -->
+
+    </div><!-- /tab-dashboard -->
+
+    <!-- ══════════════════════ SCANNER TAB ════════════════════════════════════ -->
+    <div id="tab-scanner" class="tab-panel hidden">
+
+      <!-- Scan form -->
+      <section class="card scan-card">
+        <h1 class="section-title">New Security Scan</h1>
+        <p class="section-sub">Enter an API base URL to check for common security misconfigurations. Scanning is limited to publicly reachable hosts you are authorised to test.</p>
+        <form id="scanForm" class="scan-form" autocomplete="off">
+          <div class="input-row">
+            <input
+              id="targetUrl"
+              type="url"
+              placeholder="https://api.example.com/v1"
+              required
+              class="url-input"
+              aria-label="Target API URL"
+            />
+            <button type="submit" id="scanBtn" class="btn-primary">
+              <span id="btnText">Run Scan</span>
+              <span id="btnSpinner" class="spinner hidden" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p id="formError" class="form-error hidden" role="alert"></p>
+        </form>
+      </section>
+
+      <!-- Active scan status -->
+      <section id="scanStatus" class="card status-card hidden" aria-live="polite">
+        <div class="status-row">
+          <span class="spinner spinner-accent" aria-hidden="true"></span>
+          <span id="statusText" class="status-text">Scanning…</span>
+        </div>
+        <p id="statusSub" class="muted mt-xs"></p>
+      </section>
+
+      <!-- Scan results (reuses dashboard finding components) -->
+      <section id="resultsSection" class="hidden">
+        <div class="results-header">
+          <h2 id="resultsTitle">Results</h2>
+          <div class="results-actions">
+            <div id="severityBadges" class="badge-row"></div>
+            <div class="export-btns hidden" id="scanExportRow">
+              <button class="btn-ghost btn-icon" id="scanExportJsonBtn">⬇ JSON</button>
+              <button class="btn-ghost btn-icon" id="scanExportHtmlBtn">🖨 Report</button>
+            </div>
+          </div>
+        </div>
+        <!-- Toolbar -->
+        <div class="findings-toolbar" id="scanToolbar">
+          <input type="search" id="scanFindingSearch" class="search-input" placeholder="Search findings…" aria-label="Search findings" />
+          <div class="filter-chips" id="scanFilterChips" role="group" aria-label="Filter by severity">
+            <button class="chip chip-all active" data-sev="all">All</button>
+            <button class="chip chip-critical" data-sev="critical">Critical</button>
+            <button class="chip chip-high"     data-sev="high">High</button>
+            <button class="chip chip-medium"   data-sev="medium">Medium</button>
+            <button class="chip chip-low"      data-sev="low">Low</button>
+            <button class="chip chip-info"     data-sev="info">Info</button>
+          </div>
+        </div>
+        <div id="findingsList" class="findings-list"></div>
+      </section>
+
+    </div><!-- /tab-scanner -->
+
+    <!-- ══════════════════════ BOLA LAB TAB ══════════════════════════════════ -->
+    <div id="tab-lab" class="tab-panel hidden">
+
+      <section class="card lab-intro-card">
+        <h1 class="section-title">BOLA / IDOR Authorization Lab</h1>
+        <p class="section-sub">
+          Tests <strong>Broken Object Level Authorization (BOLA)</strong> — OWASP API Security #1.
+          Two isolated test users (alice, bob) each own synthetic records.
+          The test attempts cross-user access to demonstrate the vulnerability
+          and verify that the secure implementation blocks it.
+          <span class="tag tag-demo">Local demo — synthetic data only</span>
+        </p>
+        <div class="lab-users" id="labUsers">
+          <p class="muted">Loading demo setup…</p>
+        </div>
+      </section>
+
+      <section class="card lab-controls-card">
+        <div class="lab-control-row">
+          <div class="mode-toggle-group" role="group" aria-label="API mode">
+            <button class="mode-btn active" id="modeVulnBtn" data-mode="vulnerable">Vulnerable Mode</button>
+            <button class="mode-btn"        id="modeSecureBtn" data-mode="secure">Secure Mode</button>
+          </div>
+          <button id="runLabBtn" class="btn-primary">
+            <span id="labBtnText">Run BOLA Tests</span>
+            <span id="labBtnSpinner" class="spinner hidden" aria-hidden="true"></span>
+          </button>
+          <div class="export-btns hidden" id="labExportRow">
+            <button class="btn-ghost btn-icon" id="labExportJsonBtn">⬇ JSON</button>
+            <button class="btn-ghost btn-icon" id="labExportHtmlBtn">🖨 Report</button>
+          </div>
+        </div>
+        <p class="lab-mode-desc" id="labModeDesc">
+          <strong>Vulnerable:</strong> object-ownership checks are omitted. Cross-user access is expected to succeed — demonstrating the vulnerability.
+        </p>
+      </section>
+
+      <section id="labResults" class="hidden">
+        <div class="lab-results-header">
+          <h2 id="labResultsTitle">Test Results</h2>
+          <span id="labOverallBadge" class="badge"></span>
+          <span id="labModeBadge" class="badge"></span>
+        </div>
+        <div id="labScenarioList"></div>
+      </section>
+
+    </div><!-- /tab-lab -->
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      API Sentinel &mdash; local security assessment tool &middot; No data leaves your machine
+    </div>
+  </footer>
+
+  <!-- ══ Print / export template (hidden) ═══════════════════════════════════ -->
+  <div id="printTemplate" class="hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
